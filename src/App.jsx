@@ -12,17 +12,17 @@ import GorevDuzenle from "./GorevDuzenle";
 import localData from "./database/gorevler.json";
 
 function App() {
-  // Proje durumu ve veriler için state tanımları
+
   const [gorevListesi, setGorevListesi] = useState([]);
   const [drawerAcik, setDrawerAcik] = useState(false);
   const [seciliGorev, setSeciliGorev] = useState(null);
 
-  // Veriyi JSON dosyasından yükle
+
   useEffect(() => {
     setGorevListesi(localData);
   }, []);
 
-  // Yeni görev ekleme mantığı
+
   const yeniGorevEkle = (baslik) => {
     const yeniObje = {
       id: Date.now(),
@@ -34,20 +34,19 @@ function App() {
     message.success("Görev başarıyla eklendi");
   };
 
-  // Görev bilgilerini güncelleme
   const gorevGuncelle = (id, yeniBilgiler) => {
     const güncellenmişListe = gorevListesi.map((g) => 
       g.id === id ? { ...g, ...yeniBilgiler } : g
     );
     setGorevListesi(güncellenmişListe);
     
-    // Eğer drawer o an açıksa içindeki bilgiyi de tazele
+
     if (seciliGorev?.id === id) {
       setSeciliGorev({ ...seciliGorev, ...yeniBilgiler });
     }
   };
 
-  // --- Kendi Bileşenimiz (TaskCard) ---
+
   const TaskCard = ({ gorev }) => (
     <Card 
       className="rounded-xl border-gray-200 shadow-sm hover:shadow-md transition-all"
@@ -72,7 +71,7 @@ function App() {
     <ConfigProvider theme={{ token: { borderRadius: 10, colorPrimary: '#1d4ed8' } }}>
       <div className="min-h-screen bg-slate-50 p-6">
         
-        {/* Üst Başlık ve Ekleme Butonu */}
+
         <div className="max-w-6xl mx-auto mb-10 flex justify-between items-center bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center gap-3">
             <UnorderedListOutlined className="text-blue-600 text-2xl" />
@@ -84,7 +83,7 @@ function App() {
           <GorevEkle onGorevEkle={yeniGorevEkle} />
         </div>
 
-        {/* Ana Board Tasarımı */}
+
         <Row gutter={[16, 16]} justify="center" className="max-w-7xl mx-auto">
           {[
             { baslik: "Bekleyenler", durum: "Bekliyor", ikon: <ClockCircleOutlined className="text-slate-400" /> },
@@ -109,7 +108,7 @@ function App() {
           ))}
         </Row>
 
-        {/* Bilgi Çekmecesi (Drawer) */}
+
         <Drawer 
           title="Görev Bilgileri" 
           onClose={() => setDrawerAcik(false)} 
