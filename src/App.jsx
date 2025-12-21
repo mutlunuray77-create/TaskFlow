@@ -1,140 +1,136 @@
 import { Col, Row, Card, message, Tag, Drawer, Divider, ConfigProvider, Button } from "antd";
 import { useState, useEffect } from "react";
-// İkonları tek tek kontrol ettim, bunlar standart Ant Design ikonlarıdır:
 import { 
+  CheckCircleOutlined, 
+  PlayCircleOutlined, 
+  ClockCircleOutlined,
   UnorderedListOutlined,
-  ArrowRightOutlined,
-  CheckCircleOutlined,
-  SyncOutlined,
-  ClockCircleOutlined
+  ArrowRightOutlined
 } from "@ant-design/icons";
 import GorevEkle from "./GorevEkle";
 import GorevDuzenle from "./GorevDuzenle";
 import localData from "./database/gorevler.json";
 
 function App() {
-  // --- State Tanımları ---
-  const [gorevler, setGorevler] = useState([]);
+  // Proje durumu ve veriler için state tanımları
+  const [gorevListesi, setGorevListesi] = useState([]);
   const [drawerAcik, setDrawerAcik] = useState(false);
   const [seciliGorev, setSeciliGorev] = useState(null);
 
-  // Veriyi JSON dosyasından çekiyoruz
+  // Veriyi JSON dosyasından yükle
   useEffect(() => {
-    // localData direkt import edildiği için state'e atıyoruz
-    setGorevler(localData);
+    setGorevListesi(localData);
   }, []);
 
-  // Yeni görev ekleme fonksiyonu (GorevEkle bileşeninden çağrılır)
-  const handleGorevEkle = (yeniBaslik) => {
-    const yeniGorev = {
+  // Yeni görev ekleme mantığı
+  const yeniGorevEkle = (baslik) => {
+    const yeniObje = {
       id: Date.now(),
-      title: yeniBaslik,
-      detail: "Detay girilmedi.",
+      title: baslik,
+      detail: "Henüz detay girilmedi.",
       status: "Bekliyor",
     };
-    setGorevler([...gorevler, yeniGorev]);
+    setGorevListesi([...gorevListesi, yeniObje]);
     message.success("Görev başarıyla eklendi");
   };
 
-  // Mevcut görevi güncelleme fonksiyonu (GorevDuzenle bileşeninden çağrılır)
-  const handleGuncelle = (id, guncelVeriler) => {
-    const yeniListe = gorevler.map((g) => (g.id === id ? { ...g, ...guncelVeriler } : g));
-    setGorevler(yeniListe);
+  // Görev bilgilerini güncelleme
+  const gorevGuncelle = (id, yeniBilgiler) => {
+    const güncellenmişListe = gorevListesi.map((g) => 
+      g.id === id ? { ...g, ...yeniBilgiler } : g
+    );
+    setGorevListesi(güncellenmişListe);
     
-    // Eğer o an Drawer'da açık olan görev güncellendiyse, orayı da yenile
+    // Eğer drawer o an açıksa içindeki bilgiyi de tazele
     if (seciliGorev?.id === id) {
-      setSeciliGorev({ ...seciliGorev, ...guncelVeriler });
+      setSeciliGorev({ ...seciliGorev, ...yeniBilgiler });
     }
   };
 
+  // --- Kendi Bileşenimiz (TaskCard) ---
+  const TaskCard = ({ gorev }) => (
+    <Card 
+      className="rounded-xl border-gray-200 shadow-sm hover:shadow-md transition-all"
+      bodyStyle={{ padding: '16px' }}
+    >
+      <div className="flex justify-between items-start">
+        <h4 className="font-semibold text-slate-800 m-0">{gorev.title}</h4>
+        <GorevDuzenle task={gorev} onUpdate={gorevGuncelle} />
+      </div>
+      <p className="text-gray-400 text-xs mt-2 line-clamp-1 italic">{gorev.detail}</p>
+      <Button 
+        type="link" 
+        className="p-0 mt-3 text-xs flex items-center" 
+        onClick={() => { setSeciliGorev(gorev); setDrawerAcik(true); }}
+      >
+        Detayları Gör <ArrowRightOutlined className="ml-1" />
+      </Button>
+    </Card>
+  );
+
   return (
-    <ConfigProvider theme={{ token: { borderRadius: 10, colorPrimary: '#1677ff' } }}>
-      <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '30px' }}>
+    <ConfigProvider theme={{ token: { borderRadius: 10, colorPrimary: '#1d4ed8' } }}>
+      <div className="min-h-screen bg-slate-50 p-6">
         
-        {/* Üst Header Kısmı */}
-        <header style={{ 
-          maxWidth: '1100px', 
-          margin: '0 auto 30px auto', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          background: '#fff',
-          padding: '20px',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <UnorderedListOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
+        {/* Üst Başlık ve Ekleme Butonu */}
+        <div className="max-w-6xl mx-auto mb-10 flex justify-between items-center bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-3">
+            <UnorderedListOutlined className="text-blue-600 text-2xl" />
             <div>
-              <h1 style={{ margin: 0, fontSize: '20px' }}>TaskFlow Panel</h1>
-              <p style={{ margin: 0, color: '#8c8c8c', fontSize: '12px' }}>Nuray Mutlu | Proje Ödevi</p>
+              <h1 className="text-xl font-bold text-slate-800 m-0">TaskFlow</h1>
+              <p className="text-slate-400 text-xs m-0">Nuray Mutlu - Görev Takip Paneli</p>
             </div>
           </div>
-          <GorevEkle onGorevEkle={handleGorevEkle} />
-        </header>
+          <GorevEkle onGorevEkle={yeniGorevEkle} />
+        </div>
 
-        {/* Board (Sütunlar) */}
-        <Row gutter={[20, 20]} justify="center" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Ana Board Tasarımı */}
+        <Row gutter={[16, 16]} justify="center" className="max-w-7xl mx-auto">
           {[
-            { baslik: "Bekleyenler", durum: "Bekliyor", ikon: <ClockCircleOutlined /> },
-            { baslik: "Devam Edenler", durum: "Devam Ediyor", ikon: <SyncOutlined spin /> },
-            { baslik: "Tamamlananlar", durum: "Tamamlandi", ikon: <CheckCircleOutlined /> }
+            { baslik: "Bekleyenler", durum: "Bekliyor", ikon: <ClockCircleOutlined className="text-slate-400" /> },
+            { baslik: "Devam Edenler", durum: "Devam Ediyor", ikon: <PlayCircleOutlined className="text-blue-500" /> },
+            { baslik: "Tamamlananlar", durum: "Tamamlandi", ikon: <CheckCircleOutlined className="text-green-500" /> }
           ].map((sutun) => (
             <Col xs={24} md={8} key={sutun.durum}>
-              <div style={{ background: '#f0f0f0', padding: '15px', borderRadius: '15px', minHeight: '500px' }}>
-                <h3 style={{ textAlign: 'center', color: '#595959', marginBottom: '20px' }}>
-                  {sutun.ikon} {sutun.baslik.toUpperCase()}
-                </h3>
+              <div className="bg-slate-200/50 p-4 rounded-2xl min-h-[500px] border border-slate-200">
+                <div className="flex items-center gap-2 mb-4 px-1">
+                  {sutun.ikon}
+                  <span className="font-bold text-slate-600 text-sm uppercase tracking-wider">{sutun.baslik}</span>
+                </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {gorevler.filter(g => g.status === sutun.durum).map(gorev => (
-                    <Card 
-                      key={gorev.id} 
-                      hoverable 
-                      bodyStyle={{ padding: '15px' }}
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <span style={{ fontWeight: '600', color: '#262626' }}>{gorev.title}</span>
-                        <GorevDuzenle task={gorev} onUpdate={handleGuncelle} />
-                      </div>
-                      <p style={{ color: '#8c8c8c', fontSize: '11px', marginTop: '8px' }}>
-                        {gorev.detail.substring(0, 50)}...
-                      </p>
-                      <Button 
-                        type="link" 
-                        size="small" 
-                        style={{ padding: 0, marginTop: '10px' }}
-                        onClick={() => { setSeciliGorev(gorev); setDrawerAcik(true); }}
-                      >
-                        Detaylar <ArrowRightOutlined style={{ fontSize: '10px' }} />
-                      </Button>
-                    </Card>
-                  ))}
+                <div className="flex flex-col gap-3">
+                  {gorevListesi
+                    .filter(g => g.status === sutun.durum)
+                    .map(item => <TaskCard key={item.id} gorev={item} />)
+                  }
                 </div>
               </div>
             </Col>
           ))}
         </Row>
 
-        {/* Sağdan Açılan Bilgi Paneli */}
+        {/* Bilgi Çekmecesi (Drawer) */}
         <Drawer 
-          title="Görev Ayrıntıları" 
+          title="Görev Bilgileri" 
           onClose={() => setDrawerAcik(false)} 
           open={drawerAcik} 
-          width={380}
+          width={400}
         >
           {seciliGorev && (
-            <div>
-              <Tag color="processing">{seciliGorev.status}</Tag>
-              <h2 style={{ marginTop: '15px' }}>{seciliGorev.title}</h2>
-              <Divider orientation="left">Açıklama</Divider>
-              <div style={{ background: '#fafafa', padding: '15px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
-                {seciliGorev.detail}
+            <div className="flex flex-col gap-5">
+              <Tag color="blue" className="w-fit">{seciliGorev.status}</Tag>
+              <h2 className="text-xl font-bold text-slate-800">{seciliGorev.title}</h2>
+              
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Açıklama</span>
+                <p className="text-slate-600 text-sm mt-2 leading-relaxed">{seciliGorev.detail}</p>
               </div>
-              <p style={{ marginTop: '30px', color: '#d9d9d9', fontSize: '10px' }}>
-                ID: {seciliGorev.id}
-              </p>
+              
+              <Divider />
+              <div className="text-gray-300 text-[10px] flex justify-between">
+                <span>Versiyon 1.0</span>
+                <span>ID: {seciliGorev.id}</span>
+              </div>
             </div>
           )}
         </Drawer>
