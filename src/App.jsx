@@ -1,75 +1,115 @@
-import { Col, Row, Card, message, Tag, Drawer, Divider, ConfigProvider } from "antd";
+import { Col, Row, Card, message, Tag, Drawer, Divider, ConfigProvider, Button } from "antd";
 import { useState, useEffect } from "react";
+// İkonları tek tek kontrol ettim, bunlar standart Ant Design ikonlarıdır:
 import { 
-  CheckCircleFilled, 
-  PlayCircleFilled, 
-  PauseCircleFilled, 
-  LayoutOutlined,
-  RightOutlined
+  UnorderedListOutlined,
+  ArrowRightOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  ClockCircleOutlined
 } from "@ant-design/icons";
 import GorevEkle from "./GorevEkle";
 import GorevDuzenle from "./GorevDuzenle";
 import localData from "./database/gorevler.json";
 
 function App() {
-  const [veri, setVeri] = useState([]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [viewTask, setViewTask] = useState(null);
+  // --- State Tanımları ---
+  const [gorevler, setGorevler] = useState([]);
+  const [drawerAcik, setDrawerAcik] = useState(false);
+  const [seciliGorev, setSeciliGorev] = useState(null);
 
+  // Veriyi JSON dosyasından çekiyoruz
   useEffect(() => {
-    setVeri(localData);
+    // localData direkt import edildiği için state'e atıyoruz
+    setGorevler(localData);
   }, []);
 
-  const handleYeniGorevEkle = (yeniBaslik) => {
+  // Yeni görev ekleme fonksiyonu (GorevEkle bileşeninden çağrılır)
+  const handleGorevEkle = (yeniBaslik) => {
     const yeniGorev = {
       id: Date.now(),
       title: yeniBaslik,
-      detail: "Henüz detay girilmedi.",
+      detail: "Detay girilmedi.",
       status: "Bekliyor",
     };
-    setVeri([...veri, yeniGorev]);
-    message.success("Görev panoya eklendi");
+    setGorevler([...gorevler, yeniGorev]);
+    message.success("Görev başarıyla eklendi");
   };
 
+  // Mevcut görevi güncelleme fonksiyonu (GorevDuzenle bileşeninden çağrılır)
   const handleGuncelle = (id, guncelVeriler) => {
-    setVeri(veri.map((item) => (item.id === id ? { ...item, ...guncelVeriler } : item)));
-    if (viewTask?.id === id) setViewTask({ ...viewTask, ...guncelVeriler });
+    const yeniListe = gorevler.map((g) => (g.id === id ? { ...g, ...guncelVeriler } : g));
+    setGorevler(yeniListe);
+    
+    // Eğer o an Drawer'da açık olan görev güncellendiyse, orayı da yenile
+    if (seciliGorev?.id === id) {
+      setSeciliGorev({ ...seciliGorev, ...guncelVeriler });
+    }
   };
 
   return (
-    <ConfigProvider theme={{ token: { borderRadius: 20, colorPrimary: '#2563eb' } }}>
-      <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-12">
+    <ConfigProvider theme={{ token: { borderRadius: 10, colorPrimary: '#1677ff' } }}>
+      <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', padding: '30px' }}>
         
-        {/* ÜST PANEL */}
-        <header className="max-w-[1200px] mx-auto mb-12 flex justify-between items-center bg-white/70 backdrop-blur-lg p-6 rounded-[2rem] border border-white shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-600 w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <LayoutOutlined className="text-white text-xl" />
-            </div>
+        {/* Üst Header Kısmı */}
+        <header style={{ 
+          maxWidth: '1100px', 
+          margin: '0 auto 30px auto', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          background: '#fff',
+          padding: '20px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <UnorderedListOutlined style={{ fontSize: '24px', color: '#1677ff' }} />
             <div>
-              <h1 className="text-2xl font-black text-slate-800 m-0 tracking-tight">TaskFlow</h1>
-              <p className="text-slate-500 text-xs font-medium m-0">Proje Yönetim Paneli</p>
+              <h1 style={{ margin: 0, fontSize: '20px' }}>TaskFlow Panel</h1>
+              <p style={{ margin: 0, color: '#8c8c8c', fontSize: '12px' }}>Nuray Mutlu | Proje Ödevi</p>
             </div>
           </div>
-          <GorevEkle onGorevEkle={handleYeniGorevEkle} />
+          <GorevEkle onGorevEkle={handleGorevEkle} />
         </header>
 
-        {/* ORTALANMIŞ KANBAN KOLONLARI */}
-        <Row gutter={[24, 24]} justify="center" className="max-w-[1400px] mx-auto">
+        {/* Board (Sütunlar) */}
+        <Row gutter={[20, 20]} justify="center" style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {[
-            { title: "Bekleyenler", status: "Bekliyor", icon: <PauseCircleFilled className="text-slate-400" />, bg: "bg-slate-200/40", border: "border-slate-200" },
-            { title: "Devam Edenler", status: "Devam Ediyor", icon: <PlayCircleFilled className="text-blue-500" />, bg: "bg-blue-100/40", border: "border-blue-200" },
-            { title: "Tamamlananlar", status: "Tamamlandi", icon: <CheckCircleFilled className="text-emerald-500" />, bg: "bg-emerald-100/40", border: "border-emerald-200" }
-          ].map((col) => (
-            <Col xs={24} md={12} lg={7} key={col.status}>
-              <div className={`${col.bg} p-6 rounded-[2.5rem] border ${col.border} min-h-[600px] shadow-sm`}>
-                <div className="flex items-center gap-2 mb-6 px-2">
-                  <span className="text-xl">{col.icon}</span>
-                  <h3 className="font-bold text-slate-700 m-0 uppercase text-[11px] tracking-widest">{col.title}</h3>
-                </div>
-                <div className="flex flex-col gap-4">
-                  {veri.filter(g => g.status === col.status).map(gorev => (
-                    <TaskCard key={gorev.id} gorev={gorev} onEdit={handleGuncelle} onView={() => {setViewTask(gorev); setDrawerOpen(true);}} />
+            { baslik: "Bekleyenler", durum: "Bekliyor", ikon: <ClockCircleOutlined /> },
+            { baslik: "Devam Edenler", durum: "Devam Ediyor", ikon: <SyncOutlined spin /> },
+            { baslik: "Tamamlananlar", durum: "Tamamlandi", ikon: <CheckCircleOutlined /> }
+          ].map((sutun) => (
+            <Col xs={24} md={8} key={sutun.durum}>
+              <div style={{ background: '#f0f0f0', padding: '15px', borderRadius: '15px', minHeight: '500px' }}>
+                <h3 style={{ textAlign: 'center', color: '#595959', marginBottom: '20px' }}>
+                  {sutun.ikon} {sutun.baslik.toUpperCase()}
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {gorevler.filter(g => g.status === sutun.durum).map(gorev => (
+                    <Card 
+                      key={gorev.id} 
+                      hoverable 
+                      bodyStyle={{ padding: '15px' }}
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <span style={{ fontWeight: '600', color: '#262626' }}>{gorev.title}</span>
+                        <GorevDuzenle task={gorev} onUpdate={handleGuncelle} />
+                      </div>
+                      <p style={{ color: '#8c8c8c', fontSize: '11px', marginTop: '8px' }}>
+                        {gorev.detail.substring(0, 50)}...
+                      </p>
+                      <Button 
+                        type="link" 
+                        size="small" 
+                        style={{ padding: 0, marginTop: '10px' }}
+                        onClick={() => { setSeciliGorev(gorev); setDrawerAcik(true); }}
+                      >
+                        Detaylar <ArrowRightOutlined style={{ fontSize: '10px' }} />
+                      </Button>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -77,36 +117,24 @@ function App() {
           ))}
         </Row>
 
-        {/* DETAY DRAWER - TAŞMA SORUNU ÇÖZÜLMÜŞ */}
+        {/* Sağdan Açılan Bilgi Paneli */}
         <Drawer 
-          title={<span className="font-bold text-slate-800">Görev Ayrıntıları</span>} 
-          onClose={() => setDrawerOpen(false)} 
-          open={drawerOpen} 
-          width={450}
-          className="rounded-l-[2rem]"
+          title="Görev Ayrıntıları" 
+          onClose={() => setDrawerAcik(false)} 
+          open={drawerAcik} 
+          width={380}
         >
-          {viewTask && (
-            <div className="flex flex-col gap-6">
-              <Tag color={viewTask.status === 'Tamamlandi' ? 'green' : 'blue'} className="w-fit rounded-full px-4 border-none font-bold">
-                {viewTask.status}
-              </Tag>
-              
-              <h2 className="text-2xl font-black text-slate-800 leading-tight break-words">
-                {viewTask.title}
-              </h2>
-
-              <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                <label className="text-[10px] uppercase font-black text-slate-400 block mb-3 tracking-widest">Açıklama</label>
-                <p className="text-slate-600 leading-relaxed text-base m-0 whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                  {viewTask.detail}
-                </p>
+          {seciliGorev && (
+            <div>
+              <Tag color="processing">{seciliGorev.status}</Tag>
+              <h2 style={{ marginTop: '15px' }}>{seciliGorev.title}</h2>
+              <Divider orientation="left">Açıklama</Divider>
+              <div style={{ background: '#fafafa', padding: '15px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                {seciliGorev.detail}
               </div>
-
-              <Divider />
-              <div className="flex justify-between items-center text-slate-400 text-[10px] font-bold uppercase tracking-widest px-2">
-                <span>Taskflow v1.0</span>
-                <span>Ref: #{viewTask.id.toString().slice(-6)}</span>
-              </div>
+              <p style={{ marginTop: '30px', color: '#d9d9d9', fontSize: '10px' }}>
+                ID: {seciliGorev.id}
+              </p>
             </div>
           )}
         </Drawer>
@@ -114,27 +142,5 @@ function App() {
     </ConfigProvider>
   );
 }
-
-const TaskCard = ({ gorev, onEdit, onView }) => (
-  <Card className="rounded-[2rem] border-none shadow-sm hover:shadow-md transition-all duration-300" bodyStyle={{ padding: '20px' }}>
-    <div className="flex flex-col gap-3">
-      <div className="flex justify-between items-start gap-2">
-        <h4 className="font-bold text-slate-800 m-0 flex-1 leading-snug break-words line-clamp-2 italic">
-          {gorev.title}
-        </h4>
-        <GorevDuzenle task={gorev} onUpdate={onEdit} />
-      </div>
-      <p className="text-slate-400 text-[11px] m-0 line-clamp-2 leading-normal italic">
-        {gorev.detail}
-      </p>
-      <button 
-        onClick={onView}
-        className="text-blue-600 text-[10px] font-black flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter w-fit mt-1 border-none bg-transparent cursor-pointer"
-      >
-        DETAYLARI İNCELE <RightOutlined style={{ fontSize: '9px' }} />
-      </button>
-    </div>
-  </Card>
-);
 
 export default App;
