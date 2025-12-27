@@ -1,134 +1,208 @@
-import { Col, Row, Card, message, Tag, Drawer, Divider, ConfigProvider, Button } from "antd";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { Col, Row, Card, message, Tag, Drawer, Divider, ConfigProvider, Button, Input, List } from "antd";
 import { 
   CheckCircleOutlined, 
   PlayCircleOutlined, 
   ClockCircleOutlined,
   UnorderedListOutlined,
-  ArrowRightOutlined
+  ArrowRightOutlined,
+  SendOutlined
 } from "@ant-design/icons";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import GorevEkle from "./GorevEkle";
 import GorevDuzenle from "./GorevDuzenle";
-import localData from "./database/gorevler.json";
+import initialData from "./database/gorevler.json";
 
 function App() {
-
-  const [gorevListesi, setGorevListesi] = useState([]);
-  const [drawerAcik, setDrawerAcik] = useState(false);
-  const [seciliGorev, setSeciliGorev] = useState(null);
-
+  const [tasks, setTasks] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeTask, setActiveTask] = useState(null);
+  const [commentText, setCommentText] = useState("");
 
   useEffect(() => {
-    setGorevListesi(localData);
+    const preparedData = initialData.map(item => ({
+      ...item,
+      comments: item.comments || [],
+      completedDate: item.completedDate || null
+    }));
+    setTasks(preparedData);
   }, []);
 
+  const handleDragEnd = (result) => {
+    const { destination, source, draggableId } = result;
 
-  const yeniGorevEkle = (baslik) => {
-    const yeniObje = {
-      id: Date.now(),
-      title: baslik,
-      detail: "Henüz detay girilmedi.",
-      status: "Bekliyor",
-    };
-    setGorevListesi([...gorevListesi, yeniObje]);
-    message.success("Görev başarıyla eklendi");
-  };
-
-  const gorevGuncelle = (id, yeniBilgiler) => {
-    const güncellenmişListe = gorevListesi.map((g) => 
-      g.id === id ? { ...g, ...yeniBilgiler } : g
-    );
-    setGorevListesi(güncellenmişListe);
-    
-
-    if (seciliGorev?.id === id) {
-      setSeciliGorev({ ...seciliGorev, ...yeniBilgiler });
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+      return;
     }
+
+    const updatedTasks = Array.from(tasks);
+    const taskIndex = updatedTasks.findIndex(t => t.id.toString() === draggableId);
+    const draggedTask = updatedTasks[taskIndex];
+
+    const oldStatus = draggedTask.status;
+    draggedTask.status = destination.droppableId;
+
+    if (destination.droppableId === "Tamamlandi" && oldStatus !== "Tamamlandi") {
+      draggedTask.completedDate = new Date().toLocaleString();
+      message.success("Harika! Bir görevi daha bitirdin.");
+    }
+
+    setTasks(updatedTasks);
   };
 
+  const handleAddNewTask = (title) => {
+    const newTask = {
+      id: Date.now(),
+      title: title,
+      detail: "Detaylar yolda...",
+      status: "Bekliyor",
+      comments: [],
+      completedDate: null
+    };
+    setTasks([...tasks, newTask]);
+    message.success("Yeni görev listeye eklendi.");
+  };
 
-  const TaskCard = ({ gorev }) => (
-    <Card 
-      className="rounded-xl border-gray-200 shadow-sm hover:shadow-md transition-all"
-      bodyStyle={{ padding: '16px' }}
-    >
-      <div className="flex justify-between items-start">
-        <h4 className="font-semibold text-slate-800 m-0">{gorev.title}</h4>
-        <GorevDuzenle task={gorev} onUpdate={gorevGuncelle} />
-      </div>
-      <p className="text-gray-400 text-xs mt-2 line-clamp-1 italic">{gorev.detail}</p>
-      <Button 
-        type="link" 
-        className="p-0 mt-3 text-xs flex items-center" 
-        onClick={() => { setSeciliGorev(gorev); setDrawerAcik(true); }}
-      >
-        Detayları Gör <ArrowRightOutlined className="ml-1" />
-      </Button>
-    </Card>
-  );
+  const handleUpdateTask = (id, newFields) => {
+    const newList = tasks.map(t => t.id === id ? { ...t, ...newFields } : t);
+    setTasks(newList);
+    if (activeTask?.id === id) setActiveTask({ ...activeTask, ...newFields });
+  };
+
+  const postComment = () => {
+    if (!commentText.trim()) return;
+    
+    const updated = {
+      ...activeTask,
+      comments: [...activeTask.comments, { id: Date.now(), text: commentText, date: new Date().toLocaleString() }]
+    };
+    
+    setTasks(tasks.map(t => t.id === activeTask.id ? updated : t));
+    setActiveTask(updated);
+    setCommentText("");
+  };
 
   return (
-    <ConfigProvider theme={{ token: { borderRadius: 10, colorPrimary: '#1d4ed8' } }}>
-      <div className="min-h-screen bg-slate-50 p-6">
+    <ConfigProvider theme={{ token: { borderRadius: 12, colorPrimary: '#2563eb' } }}>
+      <div className="min-h-screen bg-[#f8fafc] p-8">
         
-
-        <div className="max-w-6xl mx-auto mb-10 flex justify-between items-center bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <div className="flex items-center gap-3">
-            <UnorderedListOutlined className="text-blue-600 text-2xl" />
+        <header className="max-w-6xl mx-auto mb-12 flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-50 rounded-2xl">
+              <UnorderedListOutlined className="text-blue-600 text-2xl" />
+            </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800 m-0">TaskFlow</h1>
-              <p className="text-slate-400 text-xs m-0">Nuray Mutlu - Görev Takip Paneli</p>
+              <h1 className="text-2xl font-extrabold text-slate-800 m-0 tracking-tight">TaskFlow</h1>
+              <p className="text-slate-400 text-sm m-0 font-medium">Nuray Mutlu • Proje Yönetim Alanı</p>
             </div>
           </div>
-          <GorevEkle onGorevEkle={yeniGorevEkle} />
-        </div>
+          <GorevEkle onGorevEkle={handleAddNewTask} />
+        </header>
 
-
-        <Row gutter={[16, 16]} justify="center" className="max-w-7xl mx-auto">
-          {[
-            { baslik: "Bekleyenler", durum: "Bekliyor", ikon: <ClockCircleOutlined className="text-slate-400" /> },
-            { baslik: "Devam Edenler", durum: "Devam Ediyor", ikon: <PlayCircleOutlined className="text-blue-500" /> },
-            { baslik: "Tamamlananlar", durum: "Tamamlandi", ikon: <CheckCircleOutlined className="text-green-500" /> }
-          ].map((sutun) => (
-            <Col xs={24} md={8} key={sutun.durum}>
-              <div className="bg-slate-200/50 p-4 rounded-2xl min-h-[500px] border border-slate-200">
-                <div className="flex items-center gap-2 mb-4 px-1">
-                  {sutun.ikon}
-                  <span className="font-bold text-slate-600 text-sm uppercase tracking-wider">{sutun.baslik}</span>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Row gutter={[24, 24]} justify="center" className="max-w-7xl mx-auto">
+            {[
+              { label: "Bekleyenler", key: "Bekliyor", icon: <ClockCircleOutlined className="text-slate-400" /> },
+              { label: "Devam Edenler", key: "Devam Ediyor", icon: <PlayCircleOutlined className="text-blue-500" /> },
+              { label: "Tamamlananlar", key: "Tamamlandi", icon: <CheckCircleOutlined className="text-emerald-500" /> }
+            ].map((column) => (
+              <Col xs={24} lg={8} key={column.key}>
+                <div className="bg-[#f1f5f9] p-5 rounded-[2rem] min-h-[650px] border border-slate-200/60">
+                  <div className="flex items-center gap-3 mb-6 ml-2">
+                    {column.icon}
+                    <h3 className="font-bold text-slate-500 text-sm uppercase m-0 tracking-widest">{column.label}</h3>
+                  </div>
+                  
+                  <Droppable droppableId={column.key}>
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col gap-4 min-h-[550px]">
+                        {tasks
+                          .filter(t => t.status === column.key)
+                          .map((item, index) => (
+                            <Draggable key={item.id.toString()} draggableId={item.id.toString()} index={index}>
+                              {(provided) => (
+                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                                  <Card className="rounded-2xl border-none shadow-sm hover:shadow-md transition-shadow duration-300">
+                                    <div className="flex justify-between items-start">
+                                      <span className="font-bold text-slate-700 leading-tight">{item.title}</span>
+                                      <GorevDuzenle task={item} onUpdate={handleUpdateTask} />
+                                    </div>
+                                    <p className="text-slate-400 text-[13px] mt-2 line-clamp-2">{item.detail}</p>
+                                    <Button 
+                                      type="text" 
+                                      className="p-0 mt-4 text-blue-600 font-semibold text-xs hover:bg-transparent"
+                                      onClick={() => { setActiveTask(item); setIsDrawerOpen(true); }}
+                                    >
+                                      Detayı İncele <ArrowRightOutlined className="ml-1" />
+                                    </Button>
+                                  </Card>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
-                
-                <div className="flex flex-col gap-3">
-                  {gorevListesi
-                    .filter(g => g.status === sutun.durum)
-                    .map(item => <TaskCard key={item.id} gorev={item} />)
-                  }
-                </div>
-              </div>
-            </Col>
-          ))}
-        </Row>
-
+              </Col>
+            ))}
+          </Row>
+        </DragDropContext>
 
         <Drawer 
-          title="Görev Bilgileri" 
-          onClose={() => setDrawerAcik(false)} 
-          open={drawerAcik} 
-          width={400}
+          title={<span className="font-bold text-slate-700">Görev Detayları</span>}
+          onClose={() => setIsDrawerOpen(false)} 
+          open={isDrawerOpen} 
+          width={450}
+          className="rounded-l-[2rem]"
         >
-          {seciliGorev && (
-            <div className="flex flex-col gap-5">
-              <Tag color="blue" className="w-fit">{seciliGorev.status}</Tag>
-              <h2 className="text-xl font-bold text-slate-800">{seciliGorev.title}</h2>
-              
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Açıklama</span>
-                <p className="text-slate-600 text-sm mt-2 leading-relaxed">{seciliGorev.detail}</p>
+          {activeTask && (
+            <div className="flex flex-col h-full gap-6">
+              <div className="flex justify-between items-center">
+                <Tag color={activeTask.status === "Tamamlandi" ? "green" : "blue"} className="rounded-full px-3 border-none font-bold">
+                  {activeTask.status}
+                </Tag>
+                {activeTask.completedDate && (
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-400 m-0 uppercase font-bold">Tamamlanma</p>
+                    <span className="text-xs text-emerald-600 font-semibold">{activeTask.completedDate}</span>
+                  </div>
+                )}
               </div>
               
-              <Divider />
-              <div className="text-gray-300 text-[10px] flex justify-between">
-                <span>Versiyon 1.0</span>
-                <span>ID: {seciliGorev.id}</span>
+              <h2 className="text-2xl font-black text-slate-800 leading-tight">{activeTask.title}</h2>
+              
+              <div className="bg-slate-50 p-5 rounded-2xl">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">Açıklama</label>
+                <p className="text-slate-600 text-[15px] mt-2 italic">"{activeTask.detail}"</p>
+              </div>
+
+              <Divider className="my-2" />
+              <h4 className="text-sm font-bold text-slate-700 mb-2">Yorumlar ({activeTask.comments?.length || 0})</h4>
+              
+              <div className="flex-1 overflow-y-auto pr-2">
+                <List
+                  dataSource={activeTask.comments}
+                  renderItem={c => (
+                    <div className="mb-4 bg-blue-50/30 p-3 rounded-xl border border-blue-100/20">
+                      <p className="m-0 text-slate-700 text-sm">{c.text}</p>
+                      <span className="text-[10px] text-slate-400 mt-1 block">{c.date}</span>
+                    </div>
+                  )}
+                />
+              </div>
+
+              <div className="flex gap-2 mt-auto pb-4">
+                <Input 
+                  placeholder="Bir şeyler yaz..." 
+                  value={commentText}
+                  variant="filled"
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onPressEnter={postComment}
+                  className="rounded-xl"
+                />
+                <Button type="primary" shape="circle" icon={<SendOutlined />} onClick={postComment} />
               </div>
             </div>
           )}
